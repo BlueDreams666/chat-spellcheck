@@ -8,10 +8,13 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 final class Paint {
 	/** Shared accent for panels and selection highlights. */
 	static final int ACCENT = 0xFFFF2E4D;
-	/** The icon's pinks, for the welcome tip and the settings screen. */
-	static final int PINK = 0xFFFF6FB5;
-	static final int PINK_LIGHT = 0xFFFFC2E2;
-	static final int PINK_DEEP = 0xFFE95B8A;
+	/**
+	 * Soft, dusty pinks from the icon, kept for small accents (frames, switches, the chosen
+	 * option) on the settings screen and the welcome tip. Typos themselves stay red.
+	 */
+	static final int PINK = 0xFFD496AA;
+	static final int PINK_LIGHT = 0xFFEBD3DC;
+	static final int PINK_DEEP = 0xFF7E5163;
 	/** The star on the icon. */
 	static final int GOLD = 0xFFFFC94A;
 

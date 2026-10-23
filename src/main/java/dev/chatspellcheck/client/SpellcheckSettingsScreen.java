@@ -50,12 +50,12 @@ public final class SpellcheckSettingsScreen extends Screen {
 	private static final int SECTION_GAP = 8;
 	private static final int SCROLL_STEP = 18;
 
-	private static final int CARD = 0xC8180F15;
-	private static final int CARD_FRAME = 0xFF5A3A4C;
+	private static final int CARD = 0xC8121014;
+	private static final int CARD_FRAME = 0xFF3C343A;
 	private static final int TEXT_TITLE = 0xFFFFFFFF;
-	private static final int TEXT_SECTION = Paint.PINK_LIGHT;
-	private static final int TEXT_HINT = 0xFFC9B6C2;
-	private static final int TEXT_DIM = 0xFF8E7F89;
+	private static final int TEXT_SECTION = 0xFFE6DCE0;
+	private static final int TEXT_HINT = 0xFFBDB3B8;
+	private static final int TEXT_DIM = 0xFF8A8287;
 	private static final int DOT_READY = 0xFF5BD47A;
 	private static final int DOT_LOADING = 0xFFFFC266;
 	private static final int DOT_FAILED = 0xFFFF5C5C;
@@ -406,8 +406,8 @@ public final class SpellcheckSettingsScreen extends Screen {
 	@Override
 	public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
 		super.extractBackground(graphics, mouseX, mouseY, a);
-		// A soft tint over the blurred game, then the section cards (clipped to the scrolling area).
-		graphics.fillGradient(0, 0, width, height, 0x40301020, 0x60401028);
+		// A gentle shade over the blurred game, then the section cards (clipped to the scrolling area).
+		graphics.fillGradient(0, 0, width, height, 0x30000000, 0x50000000);
 		graphics.enableScissor(0, viewport.top, width, viewport.bottom);
 		int origin = originY();
 		for (Section s : sections) {
@@ -565,7 +565,7 @@ public final class SpellcheckSettingsScreen extends Screen {
 		};
 		for (int i = 0; i < tiles.length; i++) {
 			int tx = x + i * (tileWidth + GAP);
-			Paint.rounded(graphics, tx, y, tileWidth, 28, 0x40FF6FB5);
+			Paint.rounded(graphics, tx, y, tileWidth, 28, 0x1CFFFFFF);
 			graphics.centeredText(font, Component.literal(tiles[i][0]).withStyle(ChatFormatting.BOLD), tx + tileWidth / 2, y + 4, Paint.PINK_LIGHT);
 			String label = PopoverLayout.ellipsize(tiles[i][1], tileWidth - 4, font::width);
 			graphics.centeredText(font, label, tx + tileWidth / 2, y + 16, TEXT_HINT);

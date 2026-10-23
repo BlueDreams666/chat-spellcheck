@@ -20,8 +20,8 @@ import net.minecraft.util.Util;
  */
 final class CuteButtons {
 	static final int BODY = 0xF0231820;
-	static final int BODY_ON = 0xF04A2338;
-	static final int FRAME = 0xFF4A3A45;
+	static final int BODY_ON = 0xF02E2329;
+	static final int FRAME = 0xFF3F363C;
 	static final int TEXT = 0xFFFFFFFF;
 	static final int TEXT_OFF = 0xFFB9AEB5;
 	static final int TEXT_DISABLED = 0xFF6E6269;
@@ -154,7 +154,7 @@ final class CuteButtons {
 			int pillW = 20;
 			int px = getRight() - pillW - 5;
 			int py = getY() + (getHeight() - 10) / 2;
-			Paint.rounded(g, px, py, pillW, 10, Paint.mix(0xFF4A3A45, Paint.PINK, knob));
+			Paint.rounded(g, px, py, pillW, 10, Paint.mix(0xFF4A4247, Paint.PINK, knob));
 			int kx = px + 1 + Math.round(knob * (pillW - 10));
 			Paint.rounded(g, kx, py + 1, 8, 8, TEXT);
 			String label = PopoverLayout.ellipsize(getMessage().getString(), px - getX() - 10, font::width);
