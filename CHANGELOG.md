@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3
+
+- New icon.
+
+No other changes. Separate builds support Minecraft 26.2 and 26.3 with Fabric.
+
 ## 1.0.2
 
 - Extend optional autocorrect coverage for unambiguous typos. Short and ambiguous typos remain suggestions only.

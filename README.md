@@ -37,8 +37,8 @@ Client-side Fabric mod · works on any server · fully offline
 
 | Minecraft | Mod JAR | Fabric API |
 |---|---|---|
-| 26.3 | `chat-spellcheck-1.0.2+26.3.jar` | 0.162.0+26.3 |
-| 26.2 | `chat-spellcheck-1.0.2+26.2.jar` | 0.161.0+26.2 |
+| 26.3 | `chat-spellcheck-1.0.3+26.3.jar` | 0.162.0+26.3 |
+| 26.2 | `chat-spellcheck-1.0.3+26.2.jar` | 0.161.0+26.2 |
 
 The JAR is about 17 MB because it includes every dictionary, but only the languages you turn on are loaded into memory.
 
