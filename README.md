@@ -29,6 +29,15 @@ Client-side Fabric mod · works on any server · fully offline
 - **Knows Minecraft.** Item, block and mob names (modded ones too), online players' names, and common chat slang like `gg`, `afk` and `brb` are never flagged.
 - **Optional autocorrect.** Off by default. When it's on, only typos it's very sure about are fixed (see [Autocorrect](#-autocorrect)).
 
+## 📸 Screenshots
+
+| | |
+|---|---|
+| <img src="docs/keyboard.png" alt="Keyboard shortcut popover with the first suggestion highlighted" width="400"> | <img src="docs/languages.png" alt="Spanish, English and Hebrew in one message, each checked" width="400"> |
+| **Ctrl+.** picks a fix from the keyboard | Several languages in one message |
+| <img src="docs/autocorrect.png" alt="Autocorrect notice saying teh was corrected to the, Backspace to undo" width="400"> | <img src="docs/settings.png" alt="Settings screen with 14 dictionaries" width="400"> |
+| Optional autocorrect, Backspace undoes it | `/spellcheck` settings with 14 dictionaries |
+
 ## 🌸 Install
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) 0.19.5 or newer.
