@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/icon.png" alt="Chat Spellcheck icon" width="128">
+
 # 💖 Chat Spellcheck 💖
 
 **A little spellchecker for Minecraft's chat box ♡**

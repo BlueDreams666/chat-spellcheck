@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="bubble" x1="61" y1="47" x2="193" y2="202" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF9BBB"/>
+      <stop offset="1" stop-color="#E95B8A"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="97" y1="52" x2="171" y2="104" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#FFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="58" fill="#F7F2FF"/>
+  <path d="M54 78C54 61.431 67.431 48 84 48H172C188.569 48 202 61.431 202 78V144C202 160.569 188.569 174 172 174H103L72.3 199.2C66.45 204 57.5 199.84 57.5 192.27V170.15C55.24 166.05 54 161.34 54 156.35V78Z" fill="#C94C78" opacity=".2" transform="translate(0 5)"/>
+  <path d="M51 77C51 60.984 63.984 48 80 48H171C187.016 48 200 60.984 200 77V143C200 159.016 187.016 172 171 172H101L69 198C63.798 202.226 56 198.519 56 191.817V168.831C52.783 164.3 51 158.77 51 152.824V77Z" fill="url(#bubble)" stroke="#D94F7D" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M62 78C62 67.507 70.507 59 81 59H170C180.493 59 189 67.507 189 78V84C189 94.493 180.493 103 170 103H81C70.507 103 62 94.493 62 84V78Z" fill="url(#shine)"/>
+  <path d="M69 75C69 69.477 73.477 65 79 65" stroke="#FFF" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/>
+  <path d="M79 91H108" stroke="#FFFDFE" stroke-width="10" stroke-linecap="round"/>
+  <path d="M123 91H158" stroke="#FFFDFE" stroke-width="10" stroke-linecap="round"/>
+  <path d="M79 117H151" stroke="#FFFDFE" stroke-width="10" stroke-linecap="round"/>
+  <path d="M79 143H96" stroke="#FFFDFE" stroke-width="10" stroke-linecap="round"/>
+  <path d="M106 143C110 135 114 151 118 143C122 135 126 151 130 143C134 135 138 151 142 143C146 135 150 151 154 143" stroke="#B92D4B" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M180 53C177.9 48.9 172.3 48.9 170.2 53C168 57.3 173.7 61.7 178.5 65.8C179.4 66.6 180.6 66.6 181.5 65.8C186.3 61.7 192 57.3 189.8 53C187.7 48.9 182.1 48.9 180 53Z" fill="#FFF8D9" stroke="#D68A3B" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M215 104L218.2 111.8L226 115L218.2 118.2L215 126L211.8 118.2L204 115L211.8 111.8L215 104Z" fill="#FFC94A" stroke="#E5A62D" stroke-width="1.5" stroke-linejoin="round"/>
+  <circle cx="215" cy="115" r="2" fill="#FFF8D9"/>
+</svg>
