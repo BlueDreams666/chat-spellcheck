@@ -12,6 +12,8 @@ Typos get a red squiggle as you type. Hover one and click to fix it!
 
 Client-side Fabric mod · works on any server · fully offline
 
+[▶️ Watch the 18-second demo on YouTube](https://youtu.be/L_5H6EEQymU)
+
 [Download](https://github.com/BlueDreams666/chat-spellcheck/releases/latest) · [Report a bug](https://github.com/BlueDreams666/chat-spellcheck/issues)
 
 </div>
