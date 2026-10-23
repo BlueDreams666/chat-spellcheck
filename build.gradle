@@ -1,0 +1,91 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+base {
+	archivesName = 'chat-spellcheck'
+}
+
+repositories {
+	mavenCentral()
+	maven {
+		name = 'TerraformersMC' // Mod Menu
+		url = 'https://maven.terraformersmc.com/releases/'
+	}
+}
+
+// Mod Menu is optional for players; it only adds a settings button to the mod list.
+// Pick the build that matches the Minecraft version (override with -Pmodmenu_version=...).
+def modmenuVersion = project.findProperty('modmenu_version') ?: ['26.3': '21.0.0', '26.2': '20.0.3'][project.minecraft_version]
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Spelling engine: Apache Lucene's pure-Java Hunspell implementation (Apache-2.0).
+	// Bundled into the mod JAR via Fabric's jar-in-jar, so players install a single file.
+	implementation "org.apache.lucene:lucene-core:${project.lucene_version}"
+	implementation "org.apache.lucene:lucene-analysis-common:${project.lucene_version}"
+	include "org.apache.lucene:lucene-core:${project.lucene_version}"
+	include "org.apache.lucene:lucene-analysis-common:${project.lucene_version}"
+
+	compileOnly "com.terraformersmc:modmenu:${modmenuVersion}"
+	localRuntime "com.terraformersmc:modmenu:${modmenuVersion}"
+
+	testImplementation platform("org.junit:junit-bom:${project.junit_version}")
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+	useJUnitPlatform()
+	testLogging {
+		events 'failed'
+		exceptionFormat 'full'
+	}
+}
+
+version = "${project.version}+${project.minecraft_version}"
+
+processResources {
+	def version = project.version
+	def mc = project.minecraft_version
+	inputs.property "version", version
+	inputs.property "minecraft_version", mc
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version, "minecraft_version": mc
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+	it.options.encoding = 'UTF-8'
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	from("LICENSE")
+	from("THIRD_PARTY_NOTICES.md")
+}
+
+// In-game automated checks (Fabric client gametests): ./gradlew runClientGameTest
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = "chatspellcheck-gametest"
+		enableGameTests = false
+		enableClientGameTests = true
+		eula = true
+	}
+}
+
+// The gametest source set exists only after configureTests above.
+dependencies {
+	gametestCompileOnly "com.terraformersmc:modmenu:${modmenuVersion}"
+}

@@ -1,0 +1,37 @@
+{
+	"schemaVersion": 1,
+	"id": "chatspellcheck",
+	"version": "${version}",
+	"name": "Chat Spellcheck",
+	"description": "Offline spellchecking for the chat box in 14 languages: red underlines, hover suggestions, ignore and add-to-dictionary.",
+	"authors": [
+		"Chat Spellcheck contributors"
+	],
+	"contact": {
+		"sources": "https://github.com/BlueDreams666/chat-spellcheck",
+		"issues": "https://github.com/BlueDreams666/chat-spellcheck/issues"
+	},
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"dev.chatspellcheck.ChatSpellcheckClient"
+		],
+		"modmenu": [
+			"dev.chatspellcheck.client.ModMenuIntegration"
+		]
+	},
+	"mixins": [
+		"chatspellcheck.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~${minecraft_version}",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"icon": "assets/chatspellcheck/icon.png",
+	"suggests": {
+		"modmenu": "*"
+	}
+}

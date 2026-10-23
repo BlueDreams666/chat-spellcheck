@@ -1,0 +1,13 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"package": "dev.chatspellcheck.gametest.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"OverlayTimingMixin",
+		"InputTimingMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
