@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.1
+
+- Minecraft words are now suggested for typos, and autocorrect can fix them: "minectaft" → "minecraft", "netherrite" → "netherite". Before, only dictionary words were offered.
+
+Separate builds support Minecraft 26.2 and 26.3 with Fabric.
+
 ## 2.0.0
 
 A big update to make Chat Spellcheck friendlier from the first message.

@@ -14,7 +14,7 @@ Client-side Fabric mod · works on any server · fully offline
 
 [▶️ Watch the 18-second demo on YouTube](https://youtu.be/L_5H6EEQymU)
 
-[Download](https://github.com/BlueDreams666/chat-spellcheck/releases/latest) · [Report a bug](https://github.com/BlueDreams666/chat-spellcheck/issues)
+[Download](https://github.com/BlueDreams666/chat-spellcheck/releases/latest) · [Report a bug](https://github.com/BlueDreams666/chat-spellcheck/issues) · [☕ Buy me a coffee](https://buymeacoffee.com/bluedreams)
 
 </div>
 
@@ -56,8 +56,8 @@ Client-side Fabric mod · works on any server · fully offline
 
 | Minecraft | Mod JAR | Fabric API |
 |---|---|---|
-| 26.3 | `chat-spellcheck-2.0.0+26.3.jar` | 0.162.0+26.3 |
-| 26.2 | `chat-spellcheck-2.0.0+26.2.jar` | 0.161.0+26.2 |
+| 26.3 | `chat-spellcheck-2.0.1+26.3.jar` | 0.162.0+26.3 |
+| 26.2 | `chat-spellcheck-2.0.1+26.2.jar` | 0.161.0+26.2 |
 
 The JAR is about 19 MB because it includes every dictionary, but only the languages you turn on are loaded into memory.
 

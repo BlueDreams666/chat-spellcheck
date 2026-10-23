@@ -108,6 +108,8 @@ public class ChatSpellcheckClientGameTest implements FabricClientGameTest {
 		check(after.typosFixed() == before.typosFixed() + 1, "fixes: " + before.typosFixed() + " -> " + after.typosFixed());
 		check(after.wordsChecked() == before.wordsChecked() + 6, "words: " + before.wordsChecked() + " -> " + after.wordsChecked());
 		check(after.streak() == before.streak() + 1, "a clean message adds to the streak");
+		waitMillis(ctx, 1000); // the server echoes the message back a moment later
+		ctx.runOnClient(mc -> mc.gui.hud.getChat().clearMessages(false)); // keep later screenshots clean
 		hover(ctx, 2, 2);
 	}
 
@@ -254,6 +256,7 @@ public class ChatSpellcheckClientGameTest implements FabricClientGameTest {
 	}
 
 	private void keyboardSelectionAndEscapeLayering(ClientGameTestContext ctx) {
+		waitMillis(ctx, 700); // let the sparkle from the previous fix fade out of the screenshot
 		ctx.runOnClient(mc -> input(mc).moveCursorTo("i receive te".length(), false));
 		pressShortcut(ctx);
 		check(ctx.computeOnClient(mc -> overlay(mc).popoverIsKeyboard()), "Ctrl+. should open the keyboard popover");
@@ -685,6 +688,11 @@ public class ChatSpellcheckClientGameTest implements FabricClientGameTest {
 		ctx.getInput().typeChars("so Zorblax said wnat yeet ok. ");
 		waitMillis(ctx, 1500);
 		check(value(ctx).equals("so Zorblax said wnat yeet ok. "), "names, ambiguous typos and slang must be left alone: " + value(ctx));
+
+		// Minecraft words are fixed too, not just dictionary words.
+		ctx.runOnClient(mc -> input(mc).setValue(""));
+		ctx.getInput().typeChars("i love minectaft ");
+		waitForValue(ctx, "i love minecraft ");
 
 		// Sentence start, and a fix that is longer than the typo (cursor must follow).
 		ctx.runOnClient(mc -> input(mc).setValue(""));
