@@ -13,6 +13,7 @@ import dev.chatspellcheck.client.SpellcheckSettingsScreen;
 import dev.chatspellcheck.core.Language;
 import dev.chatspellcheck.core.Settings;
 import dev.chatspellcheck.core.SpellService;
+import dev.chatspellcheck.core.Stats;
 import dev.chatspellcheck.core.UserDictionary;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -61,7 +62,13 @@ public final class ChatSpellcheckClient implements ClientModInitializer {
 		} catch (IOException | RuntimeException e) {
 			LOG.warn("Could not read {}; added words will work this session but won't be saved", dir.resolve("custom-words.txt"), e);
 		}
-		service = new SpellService(settings, dictionary,
+		Stats stats = new Stats(dir.resolve("stats.properties"));
+		try {
+			stats.load();
+		} catch (IOException | RuntimeException e) {
+			LOG.warn("Could not read {}; stats start from zero", dir.resolve("stats.properties"), e);
+		}
+		service = new SpellService(settings, dictionary, stats,
 			name -> ChatSpellcheckClient.class.getResourceAsStream("/assets/" + MOD_ID + "/" + name));
 		service.start();
 
@@ -98,8 +105,8 @@ public final class ChatSpellcheckClient implements ClientModInitializer {
 
 	/**
 	 * The game's language code ("es_mx"), read from options.txt because the game's own options
-	 * aren't loaded yet when mods start. A brand-new install has no options.txt; the game then
-	 * starts in the computer's language, so use that.
+	 * aren't loaded yet when mods start. A brand-new install has no options.txt and starts in
+	 * English (US).
 	 */
 	private static String gameLanguage() {
 		Path options = FabricLoader.getInstance().getGameDir().resolve("options.txt");
@@ -112,8 +119,7 @@ public final class ChatSpellcheckClient implements ClientModInitializer {
 		} catch (IOException | RuntimeException ignored) {
 			// no options.txt yet
 		}
-		java.util.Locale locale = java.util.Locale.getDefault();
-		return locale.getLanguage() + "_" + locale.getCountry();
+		return "en_us";
 	}
 
 	private static java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggestLanguages(

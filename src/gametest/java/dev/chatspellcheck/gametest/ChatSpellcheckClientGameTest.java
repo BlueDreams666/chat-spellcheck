@@ -12,6 +12,8 @@ import dev.chatspellcheck.client.SpellcheckSettingsScreen;
 import dev.chatspellcheck.core.Language;
 import dev.chatspellcheck.client.ChatSpellcheckOverlay;
 import dev.chatspellcheck.core.Misspelling;
+import dev.chatspellcheck.core.Settings;
+import dev.chatspellcheck.core.Stats;
 import dev.chatspellcheck.ui.Rect;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -45,12 +47,18 @@ public class ChatSpellcheckClientGameTest implements FabricClientGameTest {
 				ctx.setScreen(() -> null);
 				return;
 			}
+			ctx.runOnClient(mc -> ChatSpellcheckClient.service().settings().welcomeTips = 0); // timings without the tip
+			ChatSpellcheckClient.service().setLanguages(List.of(Language.EN_US)).join();
+			ctx.waitFor(mc -> ChatSpellcheckClient.service().isReady(), TIMEOUT);
 			renderCost(ctx);
 			inputDrawCost(ctx);
 			if (System.getenv("CHATSPELLCHECK_TIMING_ONLY") != null) {
 				ctx.setScreen(() -> null);
 				return;
 			}
+			welcomeTipFixAndStats(ctx);
+			settingsScreen(ctx);
+			underlineLooks(ctx);
 			underlinesHoverAndClickToReplace(ctx);
 			keyboardSelectionAndEscapeLayering(ctx);
 			addToDictionaryPersists(ctx);
@@ -172,6 +180,153 @@ public class ChatSpellcheckClientGameTest implements FabricClientGameTest {
 			rec.cursor(x, y);
 			rec.frame(ctx, 33);
 		}
+	}
+
+	/**
+	 * A new player's first chats: the welcome tip shows, and fixing a typo from the popover
+	 * sparkles, ends the tip for good, and counts in the stats, as does sending the message.
+	 */
+	private void welcomeTipFixAndStats(ClientGameTestContext ctx) {
+		ctx.runOnClient(mc -> ChatSpellcheckClient.service().settings().welcomeTips = Settings.WELCOME_TIPS);
+		Stats.Snapshot before = ChatSpellcheckClient.service().stats().snapshot();
+		openChat(ctx, "");
+		check(ctx.computeOnClient(mc -> overlay(mc).welcomeTip()) != null, "the welcome tip should show");
+		check(ChatSpellcheckClient.service().settings().welcomeTips == Settings.WELCOME_TIPS - 1, "one tip used up");
+		ctx.getInput().typeChars("i love this mod its so helpfull");
+		waitForWords(ctx, List.of("helpfull"));
+		waitMillis(ctx, 300); // the underline has grown in
+		ctx.takeScreenshot("00-welcome-tip");
+
+		Rect word = rectOf(ctx, "helpfull");
+		hover(ctx, word.x() + word.width() / 2.0, word.y() + word.height() / 2.0);
+		ctx.waitFor(mc -> loadedRows(mc) != null, TIMEOUT);
+		int[] row0 = ctx.computeOnClient(mc -> overlay(mc).popoverRowCenter(0));
+		hover(ctx, word.x() + 3, word.y() - 1);
+		hover(ctx, row0[0], row0[1]);
+		ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
+		ctx.waitTick();
+		ctx.takeScreenshot("00b-fix-sparkle");
+		check(value(ctx).equals("i love this mod its so helpful"), "after fix: " + value(ctx));
+		check(ctx.computeOnClient(mc -> overlay(mc).welcomeTip()) == null, "the tip should go after the first fix");
+		check(ChatSpellcheckClient.service().settings().welcomeTips == 0, "no more tips after a fix");
+
+		ctx.getInput().pressKey(InputConstants.KEY_RETURN); // send it
+		ctx.waitFor(mc -> mc.gui.screen() == null, TIMEOUT);
+		Stats.Snapshot after = ChatSpellcheckClient.service().stats().snapshot();
+		check(after.typosFixed() == before.typosFixed() + 1, "fixes: " + before.typosFixed() + " -> " + after.typosFixed());
+		check(after.wordsChecked() == before.wordsChecked() + 6, "words: " + before.wordsChecked() + " -> " + after.wordsChecked());
+		check(after.streak() == before.streak() + 1, "a clean message adds to the streak");
+		hover(ctx, 2, 2);
+	}
+
+	/**
+	 * The settings screen: sections scroll when they don't fit, nothing overlaps or leaves the
+	 * screen at several sizes, and the look choices apply on Done.
+	 */
+	private void settingsScreen(ClientGameTestContext ctx) {
+		ctx.setScreen(() -> new SpellcheckSettingsScreen(ChatSpellcheckClient.service()));
+		ctx.waitForScreen(SpellcheckSettingsScreen.class);
+		waitMillis(ctx, 400);
+		ctx.takeScreenshot("18-settings-top");
+		checkSettingsLayout(ctx, "854x480");
+		check(ctx.computeOnClient(mc -> ((SpellcheckSettingsScreen) mc.gui.screen()).scrollRange()) > 0, "the sections should scroll at 854x480");
+		ctx.runOnClient(mc -> ((SpellcheckSettingsScreen) mc.gui.screen()).scrollTo(0.55));
+		ctx.waitTicks(2);
+		ctx.takeScreenshot("18b-settings-middle");
+		ctx.runOnClient(mc -> ((SpellcheckSettingsScreen) mc.gui.screen()).scrollTo(1));
+		ctx.waitTicks(2);
+		ctx.takeScreenshot("18c-settings-bottom");
+
+		// Mouse wheel scrolling.
+		ctx.getInput().setCursorPos(427, 240);
+		ctx.getInput().scroll(5);
+		ctx.waitTicks(2);
+		check(ctx.computeOnClient(mc -> ((SpellcheckSettingsScreen) mc.gui.screen()).scrollRange()) > 0, "still scrollable");
+
+		// Look choices show in the preview right away, and apply on Done.
+		ctx.runOnClient(mc -> ((SpellcheckSettingsScreen) mc.gui.screen()).scrollTo(0));
+		ctx.clickScreenButton("Dotted");
+		ctx.clickScreenButton("Blue");
+		ctx.clickScreenButton("Skip names"); // off: the name in the preview gets underlined too
+		waitMillis(ctx, 400);
+		ctx.takeScreenshot("18d-settings-preview-dotted-blue");
+		ctx.clickScreenButton("Skip names");
+		ctx.clickScreenButton("gui.done");
+		Settings settings = ChatSpellcheckClient.service().settings();
+		check(settings.underlineStyle == Settings.UnderlineStyle.DOTTED && settings.underlineColor == Settings.UnderlineColor.BLUE,
+			"look after Done: " + settings.underlineStyle + " " + settings.underlineColor);
+		check(settings.skipNames, "Skip names was toggled twice");
+
+		for (int[] size : new int[][] {{1920, 1080, 4}, {640, 480, 2}, {854, 480, 4}}) {
+			ctx.getInput().resizeWindow(size[0], size[1]);
+			ctx.waitTicks(2);
+			int before = ctx.computeOnClient(mc -> mc.options.guiScale().get());
+			ctx.runOnClient(mc -> {
+				mc.options.guiScale().set(size[2]);
+				mc.resizeGui();
+			});
+			ctx.setScreen(() -> new SpellcheckSettingsScreen(ChatSpellcheckClient.service()));
+			ctx.waitForScreen(SpellcheckSettingsScreen.class);
+			ctx.waitTicks(2);
+			String label = size[0] + "x" + size[1] + " gui " + size[2];
+			checkSettingsLayout(ctx, label);
+			ctx.takeScreenshot("18e-settings-" + size[0] + "x" + size[1] + "-gui" + size[2]);
+			ctx.clickScreenButton("gui.done");
+			ctx.runOnClient(mc -> {
+				mc.options.guiScale().set(before);
+				mc.resizeGui();
+			});
+		}
+		ctx.getInput().resizeWindow(854, 480);
+		ctx.waitTicks(2);
+	}
+
+	/** Every button is inside the window and no two overlap, at any scroll position. */
+	private static void checkSettingsLayout(ClientGameTestContext ctx, String label) {
+		String problem = ctx.computeOnClient(mc -> {
+			SpellcheckSettingsScreen screen = (SpellcheckSettingsScreen) mc.gui.screen();
+			List<net.minecraft.client.gui.components.AbstractWidget> widgets = screen.children().stream()
+				.filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget)
+				.map(c -> (net.minecraft.client.gui.components.AbstractWidget) c).toList();
+			for (double at : new double[] {0, 0.5, 1}) {
+				screen.scrollTo(at);
+				List<net.minecraft.client.gui.components.AbstractWidget> shown = widgets.stream().filter(w -> screen.shownRect(w) != null).toList();
+				for (var w : shown) {
+					if (w.getX() < 0 || w.getRight() > screen.width || w.getWidth() < 30) {
+						return w.getMessage().getString() + " is off screen or squashed at " + w.getRectangle();
+					}
+					for (var o : shown) {
+						if (o != w && screen.shownRect(w).intersects(screen.shownRect(o))) {
+							return w.getMessage().getString() + " overlaps " + o.getMessage().getString();
+						}
+					}
+				}
+			}
+			screen.scrollTo(0);
+			return null;
+		});
+		check(problem == null, "settings layout at " + label + ": " + problem);
+	}
+
+	/** The chosen underline style and colour in the real chat box (set by settingsScreen). */
+	private void underlineLooks(ClientGameTestContext ctx) {
+		openChat(ctx, "the dotted blue look is for wierd words");
+		waitForWords(ctx, List.of("wierd"));
+		waitMillis(ctx, 300);
+		ctx.takeScreenshot("19-dotted-blue-underline");
+		ctx.runOnClient(mc -> {
+			Settings settings = ChatSpellcheckClient.service().settings();
+			settings.underlineStyle = Settings.UnderlineStyle.STRAIGHT;
+			settings.underlineColor = Settings.UnderlineColor.PINK;
+		});
+		ctx.waitTicks(2);
+		ctx.takeScreenshot("19b-straight-pink-underline");
+		ctx.runOnClient(mc -> {
+			Settings settings = ChatSpellcheckClient.service().settings();
+			settings.underlineStyle = Settings.UnderlineStyle.SQUIGGLE;
+			settings.underlineColor = Settings.UnderlineColor.RED;
+		});
+		ctx.setScreen(() -> null);
 	}
 
 	private void underlinesHoverAndClickToReplace(ClientGameTestContext ctx) {

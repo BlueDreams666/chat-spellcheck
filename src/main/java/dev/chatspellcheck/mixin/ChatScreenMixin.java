@@ -73,6 +73,20 @@ public abstract class ChatScreenMixin implements ChatSpellcheckHost {
 		}
 	}
 
+	@Inject(method = "handleChatInput", at = @At("HEAD"))
+	private void chatspellcheck$send(String message, boolean addToHistory, CallbackInfo ci) {
+		if (chatspellcheck$overlay != null) {
+			chatspellcheck$overlay.messageSent(message);
+		}
+	}
+
+	@Inject(method = "removed", at = @At("TAIL"))
+	private void chatspellcheck$removed(CallbackInfo ci) {
+		if (chatspellcheck$overlay != null) {
+			chatspellcheck$overlay.closed();
+		}
+	}
+
 	@Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
 	private void chatspellcheck$mouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
 		if (chatspellcheck$overlay != null && chatspellcheck$overlay.mouseClicked(event)) {

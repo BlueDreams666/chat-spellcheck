@@ -12,6 +12,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import dev.chatspellcheck.core.CheckResult;
 import dev.chatspellcheck.core.Misspelling;
+import dev.chatspellcheck.core.Settings;
 import dev.chatspellcheck.core.SpellService;
 import dev.chatspellcheck.core.WordReplacement;
 import dev.chatspellcheck.mixin.EditBoxAccessor;
@@ -42,7 +43,11 @@ public final class ChatSpellcheckOverlay {
 	private static final long TYPING_GRACE_MS = 900;
 	private static final long NAME_REFRESH_MS = 2_000;
 
-	private static final int UNDERLINE_COLOR = 0xFFFF4A4A;
+	/** New underlines grow in from the left over this long. */
+	private static final long UNDERLINE_GROW_MS = 140;
+	/** The little sparkle over a word fixed from the popover. */
+	private static final long SPARKLE_MS = 600;
+	private static final int SPARKLE_PARTICLES = 8;
 
 	private static final int PANEL_BG = 0xFA0B0B0F;
 	private static final int PANEL_FRAME = 0xFF2B2B34;
@@ -109,6 +114,14 @@ public final class ChatSpellcheckOverlay {
 	private int rowsWidth;
 	private String header = "";
 
+	/** When each underline (by {@link #occurrenceKeys}) was first drawn, for the grow-in. */
+	private final java.util.Map<String, Long> underlineShownAt = new java.util.HashMap<>();
+	private List<Placed> keyedLayout;
+	private List<String> underlineKeys = List.of();
+	/** Where the last fixed word is, for the sparkle; null when none is playing. */
+	private Rect sparkle;
+	private long sparkleAt;
+
 	/** When the popover last opened (or switched words), for the fade-in. */
 	private String shownWord;
 	private long shownAt;
@@ -140,6 +153,10 @@ public final class ChatSpellcheckOverlay {
 	private int noticeX;
 	private int noticeY;
 
+	/** The first few times chat opens, a tip explains how to use the mod (see {@link Settings#welcomeTips}). */
+	private boolean showWelcome;
+	private final long openedAt = Util.getMillis();
+
 	private record Placed(Misspelling span, Rect rect, boolean beingTyped) {
 	}
 
@@ -161,6 +178,35 @@ public final class ChatSpellcheckOverlay {
 	public ChatSpellcheckOverlay(SpellService service, EditBox input) {
 		this.service = service;
 		rebind(input);
+		Settings settings = service.settings();
+		if (settings.enabled && settings.welcomeTips > 0) {
+			showWelcome = true;
+			settings.welcomeTips--;
+			service.saveSettingsQuietly();
+		}
+	}
+
+	/** The player fixed a typo, so they know how it works: no more welcome tips. */
+	private void welcomeDone() {
+		showWelcome = false;
+		if (service.settings().welcomeTips > 0) {
+			service.settings().welcomeTips = 0;
+			service.saveSettingsQuietly();
+		}
+	}
+
+	/** The message in the box is being sent: count its words, and whether it still had typos. */
+	public void messageSent(String message) {
+		if (!service.settings().enabled) {
+			return;
+		}
+		String text = input.getValue();
+		service.stats().messageSent(service.checkableWords(text), remapped(text).size());
+	}
+
+	/** Chat closed. */
+	public void closed() {
+		service.saveStatsQuietly();
 	}
 
 	/**
@@ -207,14 +253,14 @@ public final class ChatSpellcheckOverlay {
 		}
 
 		placed = place(remapped(text), text, now);
-		for (Placed p : placed) {
-			if (!p.beingTyped()) {
-				drawSquiggle(graphics, p.rect());
-			}
-		}
+		drawUnderlines(graphics, now);
+		drawSparkle(graphics, now);
 		updatePopover(graphics, mouseX, mouseY, now, commandSuggestionsVisible, dragging);
 		if (popoverRect == null) {
 			drawNotice(graphics, now);
+			if (showWelcome && notice == null && !commandSuggestionsVisible) {
+				drawWelcome(graphics, now);
+			}
 		}
 	}
 
@@ -360,6 +406,7 @@ public final class ChatSpellcheckOverlay {
 		}
 		String after = edit.get().text();
 		showNotice(word, "chatspellcheck.notice.autocorrected", NOTICE_OK, replacement);
+		service.stats().fixed(1);
 		setValueKeepingCaret(edit.get());
 		lastAutocorrect = new Applied(text, after, input.getCursorPosition(), edit.get());
 		lastSeenText = after; // our own edit: not a finished word, not "typing"
@@ -379,6 +426,7 @@ public final class ChatSpellcheckOverlay {
 		lastSeenText = input.getValue();
 		lastEditAt = Util.getMillis();
 		service.declineAutocorrection(applied.target().word());
+		service.stats().fixed(-1);
 		notice = null;
 		return true;
 	}
@@ -471,12 +519,75 @@ public final class ChatSpellcheckOverlay {
 		return List.copyOf(out);
 	}
 
-	private static void drawSquiggle(GuiGraphicsExtractor graphics, Rect word) {
-		// A 2-pixel zig-zag under the glyphs (in GUI pixels, so it scales with the GUI).
-		int y = word.bottom() - 1;
-		for (int x = word.x(); x < word.right(); x += 2) {
-			int dy = ((x - word.x()) / 2) % 2 == 0 ? 0 : -1;
-			graphics.fill(x, y + dy, Math.min(x + 2, word.right()), y + dy + 1, UNDERLINE_COLOR);
+	/**
+	 * Underlines in the player's style and colour. Each one grows in from the left the first
+	 * time it is shown; words are told apart by text and occurrence, so editing elsewhere in the
+	 * line doesn't replay the animation.
+	 */
+	private void drawUnderlines(GuiGraphicsExtractor graphics, long now) {
+		if (layout != keyedLayout) {
+			keyedLayout = layout;
+			underlineKeys = occurrenceKeys(layout);
+			underlineShownAt.keySet().retainAll(underlineKeys);
+		}
+		Settings settings = service.settings();
+		for (int i = 0; i < placed.size(); i++) {
+			Placed p = placed.get(i);
+			if (p.beingTyped()) {
+				continue;
+			}
+			String key = underlineKeys.get(i);
+			Long shown = underlineShownAt.get(key);
+			if (shown == null) {
+				underlineShownAt.put(key, now);
+				shown = now;
+			}
+			float t = (now - shown) / (float) UNDERLINE_GROW_MS;
+			float progress = t >= 1f ? 1f : 1 - (1 - t) * (1 - t);
+			Rect r = p.rect();
+			Paint.underline(graphics, r.x(), r.right(), r.bottom() - 1, settings.underlineStyle, settings.underlineColor.argb, progress);
+		}
+	}
+
+	private static List<String> occurrenceKeys(List<Placed> placed) {
+		List<String> keys = new ArrayList<>(placed.size());
+		for (int i = 0; i < placed.size(); i++) {
+			String word = placed.get(i).span().word();
+			int n = 0;
+			for (int j = 0; j < i; j++) {
+				if (placed.get(j).span().word().equals(word)) {
+					n++;
+				}
+			}
+			keys.add(n + ":" + word);
+		}
+		return List.copyOf(keys);
+	}
+
+	/** Pink and gold specks rising and fading over a word that was just fixed. */
+	private void drawSparkle(GuiGraphicsExtractor graphics, long now) {
+		Rect r = sparkle;
+		if (r == null) {
+			return;
+		}
+		float t = (now - sparkleAt) / (float) SPARKLE_MS;
+		if (t >= 1f) {
+			sparkle = null;
+			return;
+		}
+		float alpha = 1 - t * t;
+		int rise = Math.round(10 * (1 - (1 - t) * (1 - t)));
+		graphics.nextStratum();
+		for (int i = 0; i < SPARKLE_PARTICLES; i++) {
+			int x = r.x() + (r.width() * (2 * i + 1)) / (2 * SPARKLE_PARTICLES);
+			int y = r.y() + 1 - rise - (i % 3) * 3;
+			int color = Paint.fade(i % 2 == 0 ? Paint.PINK : Paint.GOLD, alpha);
+			if (i % 3 == 0) { // "+" stars
+				graphics.fill(x - 1, y, x + 2, y + 1, color);
+				graphics.fill(x, y - 1, x + 1, y + 2, color);
+			} else {
+				graphics.fill(x, y, x + 2, y + 2, color);
+			}
 		}
 	}
 
@@ -532,8 +643,13 @@ public final class ChatSpellcheckOverlay {
 			graphics.requestCursor(CursorTypes.POINTING_HAND);
 		}
 		float t = Math.min(1f, (now - shownAt) / (float) FADE_IN_MS);
-		float alpha = 0.35f + 0.65f * (1 - (1 - t) * (1 - t)); // ease out, never fully transparent
+		float eased = 1 - (1 - t) * (1 - t);
+		float alpha = 0.35f + 0.65f * eased; // ease out, never fully transparent
+		// Slides up 2 pixels as it fades in (drawing only; clicks use the final position).
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(0, 2 * (1 - eased));
 		drawPopover(graphics, font, selectedRow, hoveredRow, alpha);
+		graphics.pose().popMatrix();
 	}
 
 	private Placed find(Misspelling span) {
@@ -718,6 +834,26 @@ public final class ChatSpellcheckOverlay {
 		graphics.text(font, shown, r.x() + 6, r.y() + 3, Paint.fade(noticeColor, alpha), false);
 	}
 
+	/** The welcome tip: a pink pill just above the right end of the chat box, fading in. */
+	private void drawWelcome(GuiGraphicsExtractor graphics, long now) {
+		Font font = box.chatspellcheck$font();
+		String text = welcomeText();
+		int width = Math.min(font.width(text) + 12, PopoverLayout.maxWidth(graphics.guiWidth()));
+		String shown = PopoverLayout.ellipsize(text, width - 12, font::width);
+		int right = Math.min(input.getX() + input.getWidth(), graphics.guiWidth() - 2);
+		Rect r = new Rect(Math.max(2, right - width), input.getY() - 17, width, 13);
+		float t = Math.min(1f, (now - openedAt) / 250f);
+		float alpha = 1 - (1 - t) * (1 - t);
+		graphics.nextStratum();
+		Paint.panel(graphics, r, PANEL_BG, PANEL_FRAME, Paint.PINK, alpha);
+		graphics.text(font, shown, r.x() + 6, r.y() + 3, Paint.fade(Paint.PINK_LIGHT, alpha), false);
+	}
+
+	private static String welcomeText() {
+		String shortcut = Util.getPlatform() == Util.OS.OSX ? "Cmd+." : "Ctrl+.";
+		return Component.translatable("chatspellcheck.welcome", shortcut).getString();
+	}
+
 	private void showNotice(Misspelling target, String key, int color, Object... extra) {
 		Placed p = find(target);
 		if (p != null) {
@@ -766,6 +902,11 @@ public final class ChatSpellcheckOverlay {
 	/** The confirmation currently shown after Ignore / Add to dictionary, or null. */
 	public String noticeText() {
 		return notice != null && noticeUntil > Util.getMillis() ? notice : null;
+	}
+
+	/** The welcome tip, or null when it isn't showing. */
+	public String welcomeTip() {
+		return showWelcome && service.settings().enabled ? welcomeText() : null;
 	}
 
 	public boolean popoverIsKeyboard() {
@@ -877,6 +1018,7 @@ public final class ChatSpellcheckOverlay {
 			}
 			case ADD -> {
 				showNotice(target, "chatspellcheck.notice.added", NOTICE_OK);
+				service.stats().wordAdded();
 				service.addToDictionary(target.word()).thenAccept(saved -> {
 					if (!saved && notice != null) {
 						// The word still counts for this session; say so instead of failing silently.
@@ -892,7 +1034,17 @@ public final class ChatSpellcheckOverlay {
 	}
 
 	private void replace(Misspelling target, String replacement) {
-		WordReplacement.apply(input.getValue(), target, replacement, box.chatspellcheck$maxLength()).ifPresent(this::setValueKeepingCaret);
+		Placed before = find(target);
+		WordReplacement.apply(input.getValue(), target, replacement, box.chatspellcheck$maxLength()).ifPresent(edit -> {
+			setValueKeepingCaret(edit);
+			if (before != null) {
+				Rect r = before.rect();
+				sparkle = new Rect(r.x(), r.y(), Math.max(r.width(), box.chatspellcheck$font().width(replacement)), r.height());
+				sparkleAt = Util.getMillis();
+			}
+			service.stats().fixed(1);
+			welcomeDone();
+		});
 	}
 
 	/**

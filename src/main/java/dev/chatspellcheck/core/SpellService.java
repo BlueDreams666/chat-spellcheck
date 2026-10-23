@@ -47,6 +47,7 @@ public final class SpellService implements AutoCloseable {
 
 	private final Settings settings;
 	private final UserDictionary userDictionary;
+	private final Stats stats;
 	private final Function<String, InputStream> resources;
 	private final ExecutorService checkWorker = Executors.newSingleThreadExecutor(daemon("Chat Spellcheck"));
 	private final ScheduledExecutorService suggestWorker = Executors.newSingleThreadScheduledExecutor(daemon("Chat Spellcheck suggestions"));
@@ -87,8 +88,13 @@ public final class SpellService implements AutoCloseable {
 	private boolean releaseScheduled;
 
 	public SpellService(Settings settings, UserDictionary userDictionary, Function<String, InputStream> resources) {
+		this(settings, userDictionary, Stats.inMemory(), resources);
+	}
+
+	public SpellService(Settings settings, UserDictionary userDictionary, Stats stats, Function<String, InputStream> resources) {
 		this.settings = settings;
 		this.userDictionary = userDictionary;
+		this.stats = stats;
 		this.resources = resources;
 	}
 
@@ -107,6 +113,21 @@ public final class SpellService implements AutoCloseable {
 
 	public UserDictionary userDictionary() {
 		return userDictionary;
+	}
+
+	public Stats stats() {
+		return stats;
+	}
+
+	/** Writes the stats file in the background, if anything changed. */
+	public void saveStatsQuietly() {
+		ioWorker.execute(() -> {
+			try {
+				stats.save();
+			} catch (IOException e) {
+				LOG.warn("Could not save stats", e);
+			}
+		});
 	}
 
 	/** Loads the allow-list, then the configured dictionaries and their frequency lists, in the background. */
@@ -308,6 +329,15 @@ public final class SpellService implements AutoCloseable {
 			i--; // spaces, quotes, brackets
 		}
 		return i >= 0 && ".!?".indexOf(text.charAt(i)) < 0;
+	}
+
+	/** How many words in {@code text} would be checked, for the stats. */
+	public int checkableWords(String text) {
+		Set<Character.UnicodeScript> scripts = new java.util.HashSet<>();
+		for (Language l : settings.languages) {
+			scripts.add(l.script());
+		}
+		return TextScanner.scan(text, settings.checkMessageCommands, scripts).size();
 	}
 
 	/** Loaded engines for {@code languages}, in priority order. */
@@ -704,6 +734,7 @@ public final class SpellService implements AutoCloseable {
 
 	@Override
 	public void close() {
+		saveStatsQuietly();
 		// Let pending file writes finish; checks and lookups are simply abandoned.
 		checkWorker.shutdownNow();
 		suggestWorker.shutdownNow();
