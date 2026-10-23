@@ -89,4 +89,17 @@ class LanguageTest {
 		assertEquals(Optional.empty(), Language.parse("klingon"));
 		assertEquals(List.of(Language.EN_US, Language.ES_ES), Language.parseList("en_US, es,en_US,zz"));
 	}
+
+	@Test
+	void gameLanguages() {
+		assertEquals(List.of(Language.EN_US), Language.defaultsForGameLanguage("en_us"));
+		assertEquals(List.of(Language.EN_GB), Language.defaultsForGameLanguage("en_nz"));
+		assertEquals(List.of(Language.ES_ES, Language.EN_US), Language.defaultsForGameLanguage("es_mx"));
+		assertEquals(List.of(Language.DE_CH, Language.EN_US), Language.defaultsForGameLanguage("de_ch"));
+		assertEquals(List.of(Language.DE_DE, Language.EN_US), Language.defaultsForGameLanguage("de_at"));
+		assertEquals(List.of(Language.NB_NO, Language.EN_US), Language.defaultsForGameLanguage("nn_no"));
+		assertEquals(List.of(Language.HE_IL, Language.EN_US), Language.defaultsForGameLanguage("he_IL"));
+		assertEquals(List.of(Language.EN_US), Language.defaultsForGameLanguage("ja_jp"));
+		assertEquals(List.of(Language.EN_US), Language.defaultsForGameLanguage(null));
+	}
 }

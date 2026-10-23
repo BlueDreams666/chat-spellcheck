@@ -43,14 +43,24 @@ each dictionary's licence.
 To obtain the dictionary sources, use the repository above. The bundled `.aff`/`.dic`
 files are themselves the source form.
 
-## Word frequency list
+## Word frequency lists
 
-`assets/chatspellcheck/frequency/en_word_frequency.txt` is derived from `en-80k.txt` in
-SymSpell (https://github.com/wolfgarbe/SymSpell), Copyright (c) 2018 Wolf Garbe, MIT License.
-That list was built from Google Books Ngram counts (Creative Commons Attribution 3.0,
-https://creativecommons.org/licenses/by/3.0/) intersected with Hunspell/SCOWL word lists.
-Modification: counts were converted to round(10 × log10(count)) and non-alphabetic entries
-were removed. It is used only to order suggestions.
+The files in `assets/chatspellcheck/frequency/` are derived from SymSpell's frequency
+dictionaries (https://github.com/wolfgarbe/SymSpell), Copyright (c) 2018 Wolf Garbe, MIT License:
+
+| File | SymSpell source |
+|---|---|
+| `en_word_frequency.txt` | `en-80k.txt` |
+| `de_word_frequency.txt` | `SymSpell.FrequencyDictionary/de-100k.txt` |
+| `es_word_frequency.txt` | `SymSpell.FrequencyDictionary/es-100l.txt` |
+| `fr_word_frequency.txt` | `SymSpell.FrequencyDictionary/fr-100k.txt` |
+| `he_word_frequency.txt` | `SymSpell.FrequencyDictionary/he-100k.txt` |
+| `it_word_frequency.txt` | `SymSpell.FrequencyDictionary/it-100k.txt` |
+
+Those lists were built from Google Books Ngram counts (Creative Commons Attribution 3.0,
+https://creativecommons.org/licenses/by/3.0/) intersected with Hunspell word lists.
+Modification: counts were converted to round(10 × log10(count)), words were lower-cased, and
+non-alphabetic entries were removed. They are used only to order suggestions.
 
 MIT License text for SymSpell:
 

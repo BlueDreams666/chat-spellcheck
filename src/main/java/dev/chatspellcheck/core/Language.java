@@ -67,6 +67,23 @@ public enum Language {
 	}
 
 	/**
+	 * The bundled word-frequency list used to rank this language's suggestions
+	 * ({@code frequency/<name>_word_frequency.txt}), or null if there isn't one. Swiss German
+	 * shares the German list.
+	 */
+	public String frequencyList() {
+		return switch (this) {
+			case EN_US, EN_GB, EN_CA, EN_AU -> "en";
+			case DE_DE, DE_CH -> "de";
+			case ES_ES -> "es";
+			case FR_FR -> "fr";
+			case IT_IT -> "it";
+			case HE_IL -> "he";
+			default -> null;
+		};
+	}
+
+	/**
 	 * Accepts "de_CH", "de-ch", "DE_CH"; a bare language ("de" → de_DE, "en" → en_US); or a
 	 * region that is unambiguous among the bundled dictionaries ("gb", "ch", "no").
 	 */
@@ -96,6 +113,51 @@ public enum Language {
 			}
 		}
 		return Optional.ofNullable(byRegion);
+	}
+
+	/**
+	 * The dictionary for a Minecraft language code such as "es_mx" or "en_gb", or empty if
+	 * none is bundled. Regional variants map to the closest dictionary.
+	 */
+	public static Optional<Language> forGameLanguage(String gameCode) {
+		if (gameCode == null) {
+			return Optional.empty();
+		}
+		String code = gameCode.strip().toLowerCase(Locale.ROOT).replace('-', '_');
+		return Optional.ofNullable(switch (code) {
+			case "en_us" -> EN_US;
+			case "en_gb", "en_nz", "en_ie", "en_ud", "enws", "en_pt" -> EN_GB;
+			case "en_ca" -> EN_CA;
+			case "en_au" -> EN_AU;
+			case "de_ch" -> DE_CH;
+			case "nb_no", "no_no", "nn_no" -> NB_NO;
+			case "ar_sa" -> AR;
+			default -> {
+				String lang = code.contains("_") ? code.substring(0, code.indexOf('_')) : code;
+				yield switch (lang) {
+					case "en" -> EN_US;
+					case "da" -> DA_DK;
+					case "nl" -> NL_NL;
+					case "fr" -> FR_FR;
+					case "de", "nds" -> DE_DE;
+					case "it" -> IT_IT;
+					case "es" -> ES_ES;
+					case "he" -> HE_IL;
+					case "ar" -> AR;
+					default -> null;
+				};
+			}
+		});
+	}
+
+	/**
+	 * The languages to start with for a Minecraft language code: its dictionary, plus English
+	 * (US) for other languages since so much server chat is in English; English (US) alone if
+	 * none is bundled.
+	 */
+	public static List<Language> defaultsForGameLanguage(String gameCode) {
+		Language l = forGameLanguage(gameCode).orElse(EN_US);
+		return l.isEnglish() ? List.of(l) : List.of(l, EN_US);
 	}
 
 	/** Parses a comma-separated list, skipping unknown entries and duplicates. */

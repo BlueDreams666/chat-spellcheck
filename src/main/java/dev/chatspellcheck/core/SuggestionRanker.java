@@ -67,8 +67,9 @@ public final class SuggestionRanker {
 	}
 
 	/**
-	 * @param english enables English-only contraction suggestions ("dont" → "don't") and
-	 *                frequency ranking; other languages rank by typo distance and Hunspell's order.
+	 * @param english enables English-only contraction suggestions ("dont" → "don't"). Every
+	 *                language with a frequency list is ranked by it; the others rank by typo
+	 *                distance and Hunspell's order.
 	 */
 	public SuggestionRanker(WordFrequency frequency, Predicate<String> domainWord, boolean english) {
 		this.frequency = frequency;
@@ -104,10 +105,9 @@ public final class SuggestionRanker {
 				? Math.max(CONTRACTION_FREQUENCY, frequency.score(candidate))
 				: frequency.score(candidate);
 			double distance = TypoDistance.between(lowerWord, lowerCandidate);
-			// Word frequencies exist only for English; other languages rank by typo distance and
-			// Hunspell's own order.
+			// Languages without a frequency list rank by typo distance and Hunspell's own order.
 			double score = -DISTANCE_WEIGHT * distance - ORDER_WEIGHT * index
-				+ (english ? FREQUENCY_WEIGHT * freq : 0);
+				+ (frequency.isEmpty() ? 0 : FREQUENCY_WEIGHT * freq);
 			if (!isSplit(candidate) && domainWord.test(lowerCandidate)) {
 				score += DOMAIN_BONUS;
 			}

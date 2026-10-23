@@ -38,6 +38,36 @@ class PersistenceTest {
 	}
 
 	@Test
+	void newSettingsRoundTripAndBadValuesKeepDefaults() throws Exception {
+		Path file = dir.resolve("settings.properties");
+		Settings s = new Settings(file);
+		s.load();
+		assertTrue(s.firstRun, "no file yet");
+		assertTrue(s.skipNames);
+		assertEquals(Settings.UnderlineStyle.SQUIGGLE, s.underlineStyle);
+		assertEquals(Settings.WELCOME_TIPS, s.welcomeTips);
+		s.skipNames = false;
+		s.underlineStyle = Settings.UnderlineStyle.DOTTED;
+		s.underlineColor = Settings.UnderlineColor.BLUE;
+		s.welcomeTips = 0;
+		s.save();
+
+		Settings again = new Settings(file);
+		again.load();
+		assertFalse(again.firstRun);
+		assertFalse(again.skipNames);
+		assertEquals(Settings.UnderlineStyle.DOTTED, again.underlineStyle);
+		assertEquals(Settings.UnderlineColor.BLUE, again.underlineColor);
+		assertEquals(0, again.welcomeTips);
+
+		Files.writeString(file, "underlineStyle=wavy\nunderlineColor= Pink \nwelcomeTips=lots\n");
+		again.load();
+		assertEquals(Settings.UnderlineStyle.SQUIGGLE, again.underlineStyle);
+		assertEquals(Settings.UnderlineColor.PINK, again.underlineColor);
+		assertEquals(Settings.WELCOME_TIPS, again.welcomeTips);
+	}
+
+	@Test
 	void handEditedValuesAreReadLeniently() throws Exception {
 		Path file = dir.resolve("settings.properties");
 		Files.write(file, ("\uFEFF# edited by hand\nenabled = Yes\nlanguages = DE, fr-fr, klingon,de\ncheckMessageCommands=maybe\n").getBytes(StandardCharsets.UTF_8));

@@ -47,6 +47,15 @@ public final class ChatSpellcheckClient implements ClientModInitializer {
 		} catch (IOException | RuntimeException e) {
 			LOG.warn("Could not read {}; using default settings", dir.resolve("settings.properties"), e);
 		}
+		if (settings.firstRun) {
+			// First launch: start with the dictionary for the game's language.
+			settings.languages = Language.defaultsForGameLanguage(gameLanguage());
+			try {
+				settings.save();
+			} catch (IOException e) {
+				LOG.warn("Could not save {}", dir.resolve("settings.properties"), e);
+			}
+		}
 		try {
 			dictionary.load();
 		} catch (IOException | RuntimeException e) {
@@ -85,6 +94,26 @@ public final class ChatSpellcheckClient implements ClientModInitializer {
 				.then(ClientCommands.literal("forget")
 					.then(ClientCommands.argument("word", StringArgumentType.greedyString())
 						.executes(ChatSpellcheckClient::forget)))));
+	}
+
+	/**
+	 * The game's language code ("es_mx"), read from options.txt because the game's own options
+	 * aren't loaded yet when mods start. A brand-new install has no options.txt; the game then
+	 * starts in the computer's language, so use that.
+	 */
+	private static String gameLanguage() {
+		Path options = FabricLoader.getInstance().getGameDir().resolve("options.txt");
+		try {
+			for (String line : java.nio.file.Files.readAllLines(options, java.nio.charset.StandardCharsets.UTF_8)) {
+				if (line.startsWith("lang:")) {
+					return line.substring(5).strip();
+				}
+			}
+		} catch (IOException | RuntimeException ignored) {
+			// no options.txt yet
+		}
+		java.util.Locale locale = java.util.Locale.getDefault();
+		return locale.getLanguage() + "_" + locale.getCountry();
 	}
 
 	private static java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggestLanguages(

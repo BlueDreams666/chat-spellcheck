@@ -21,6 +21,29 @@ public final class Settings {
 	public volatile boolean checkMessageCommands = false;
 	/** Fix a misspelled word as soon as it is finished, when the fix is near-certain. Off by default. */
 	public volatile boolean autocorrect = false;
+	/** Don't flag capitalised words in the middle of a sentence; they are probably names. */
+	public volatile boolean skipNames = true;
+	public volatile UnderlineStyle underlineStyle = UnderlineStyle.SQUIGGLE;
+	public volatile UnderlineColor underlineColor = UnderlineColor.RED;
+	/** How many more times the welcome tip shows when chat opens; 0 once it is done. */
+	public volatile int welcomeTips = WELCOME_TIPS;
+	/** True when there was no settings file yet, i.e. the mod's first launch. Not saved. */
+	public volatile boolean firstRun;
+
+	public static final int WELCOME_TIPS = 3;
+
+	public enum UnderlineStyle { SQUIGGLE, STRAIGHT, DOTTED }
+
+	/** Underline colours; blue stays visible with red-green colour blindness. */
+	public enum UnderlineColor {
+		RED(0xFFFF4A4A), PINK(0xFFFF6FB5), ORANGE(0xFFFFA43A), BLUE(0xFF4AA8FF);
+
+		public final int argb;
+
+		UnderlineColor(int argb) {
+			this.argb = argb;
+		}
+	}
 
 	public Settings(Path file) {
 		this.file = file;
@@ -36,6 +59,7 @@ public final class Settings {
 	 */
 	public void load() throws IOException {
 		if (!Files.exists(file)) {
+			firstRun = true;
 			save();
 			return;
 		}
@@ -52,6 +76,26 @@ public final class Settings {
 		languages = parsed.isEmpty() ? List.of(Language.EN_US) : List.copyOf(parsed);
 		checkMessageCommands = parseBoolean(p.getProperty("checkMessageCommands"), false);
 		autocorrect = parseBoolean(p.getProperty("autocorrect"), false);
+		skipNames = parseBoolean(p.getProperty("skipNames"), true);
+		underlineStyle = parseEnum(p.getProperty("underlineStyle"), UnderlineStyle.SQUIGGLE);
+		underlineColor = parseEnum(p.getProperty("underlineColor"), UnderlineColor.RED);
+		try {
+			welcomeTips = Math.clamp(Integer.parseInt(p.getProperty("welcomeTips", "").strip()), 0, WELCOME_TIPS);
+		} catch (NumberFormatException e) {
+			welcomeTips = WELCOME_TIPS;
+		}
+	}
+
+	/** The constant named {@code raw} in any case; anything else keeps the default. */
+	static <E extends Enum<E>> E parseEnum(String raw, E fallback) {
+		if (raw != null) {
+			for (E e : fallback.getDeclaringClass().getEnumConstants()) {
+				if (e.name().equalsIgnoreCase(raw.strip())) {
+					return e;
+				}
+			}
+		}
+		return fallback;
 	}
 
 	/** "true/on/yes/1" and "false/off/no/0", any case; anything else keeps the default. */
@@ -73,8 +117,12 @@ public final class Settings {
 		p.setProperty("languages", languages.stream().map(Language::code).collect(Collectors.joining(",")));
 		p.setProperty("checkMessageCommands", Boolean.toString(checkMessageCommands));
 		p.setProperty("autocorrect", Boolean.toString(autocorrect));
+		p.setProperty("skipNames", Boolean.toString(skipNames));
+		p.setProperty("underlineStyle", underlineStyle.name().toLowerCase(Locale.ROOT));
+		p.setProperty("underlineColor", underlineColor.name().toLowerCase(Locale.ROOT));
+		p.setProperty("welcomeTips", Integer.toString(welcomeTips));
 		StringWriter w = new StringWriter();
-		p.store(w, "Chat Spellcheck. languages: comma-separated, e.g. en_US,es_ES. Available: en_US en_GB en_CA en_AU da_DK nl_NL fr_FR de_DE de_CH it_IT nb_NO es_ES he_IL ar. autocorrect: true/false (off by default).");
+		p.store(w, "Chat Spellcheck. languages: comma-separated, e.g. en_US,es_ES. Available: en_US en_GB en_CA en_AU da_DK nl_NL fr_FR de_DE de_CH it_IT nb_NO es_ES he_IL ar. autocorrect: true/false (off by default). underlineStyle: squiggle/straight/dotted. underlineColor: red/pink/orange/blue.");
 		TextFiles.writeAtomically(file, w.toString().getBytes(StandardCharsets.UTF_8));
 	}
 }

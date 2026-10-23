@@ -14,30 +14,34 @@ import java.util.Locale;
  * suggestions that Hunspell has already produced. Higher is more common: "the" ≈ 104,
  * the rarest listed words ≈ 36.
  *
- * <p>Stored compactly (1.6 MB of arrays instead of 7.7 MB for a HashMap of 80k boxed entries): all
- * words as Latin-1 bytes in one array, a score byte per word, and an open-addressing table of
- * word indices.
+ * <p>Stored compactly (about 2 MB of arrays instead of 7.7 MB for a HashMap of 80k boxed entries):
+ * all words in one char array, a score byte per word, and an open-addressing table of word indices.
+ * One list per language family ({@link Language#frequencyList()}); each loads only while needed.
  */
 public final class WordFrequency {
 	/** Score assumed for words missing from the list (rarer than anything listed). */
 	public static final int UNKNOWN = 30;
 
-	private final byte[] chars;
+	private final char[] chars;
 	/** Word {@code i} is {@code chars[offsets[i] .. offsets[i + 1])}. */
 	private final int[] offsets;
 	private final byte[] scores;
 	/** Word index + 1, or 0 for an empty slot; length is a power of two. */
 	private final int[] table;
 
-	private WordFrequency(byte[] chars, int[] offsets, byte[] scores, int[] table) {
+	private WordFrequency(char[] chars, int[] offsets, byte[] scores, int[] table) {
 		this.chars = chars;
 		this.offsets = offsets;
 		this.scores = scores;
 		this.table = table;
 	}
 
+	public boolean isEmpty() {
+		return scores.length == 0;
+	}
+
 	public static WordFrequency empty() {
-		return new WordFrequency(new byte[0], new int[] {0}, new byte[0], new int[1]);
+		return new WordFrequency(new char[0], new int[] {0}, new byte[0], new int[1]);
 	}
 
 	public static WordFrequency load(InputStream in) {
@@ -81,9 +85,6 @@ public final class WordFrequency {
 
 	private int find(String word) {
 		int h = hash(word);
-		if (h == -1) {
-			return -1; // contains a character outside Latin-1: not in the list
-		}
 		int mask = table.length - 1;
 		for (int slot = h & mask; ; slot = (slot + 1) & mask) {
 			int entry = table[slot];
@@ -102,40 +103,31 @@ public final class WordFrequency {
 			return false;
 		}
 		for (int i = 0; i < word.length(); i++) {
-			if ((chars[start + i] & 0xFF) != word.charAt(i)) {
+			if (chars[start + i] != word.charAt(i)) {
 				return false;
 			}
 		}
 		return true;
 	}
 
-	/** Non-negative hash of a Latin-1 string, or -1 if it has other characters. */
+	/** Non-negative hash of a string. */
 	private static int hash(CharSequence s) {
 		int h = 0;
 		for (int i = 0; i < s.length(); i++) {
-			char c = s.charAt(i);
-			if (c > 0xFF) {
-				return -1;
-			}
-			h = 31 * h + c;
+			h = 31 * h + s.charAt(i);
 		}
 		h ^= h >>> 16;
 		return (h * 0x9E3779B9) & 0x7FFFFFFF;
 	}
 
 	private static final class Builder {
-		private byte[] chars = new byte[1 << 20];
+		private char[] chars = new char[1 << 20];
 		private int[] offsets = new int[1 << 17];
 		private byte[] scores = new byte[1 << 17];
 		private int count;
 		private int length;
 
 		void put(String word, int score) {
-			for (int i = 0; i < word.length(); i++) {
-				if (word.charAt(i) > 0xFF) {
-					return; // can never be looked up
-				}
-			}
 			if (count + 2 > offsets.length) {
 				offsets = Arrays.copyOf(offsets, offsets.length * 2);
 				scores = Arrays.copyOf(scores, scores.length * 2);
@@ -144,9 +136,8 @@ public final class WordFrequency {
 				chars = Arrays.copyOf(chars, Math.max(chars.length * 2, length + word.length()));
 			}
 			offsets[count] = length;
-			for (int i = 0; i < word.length(); i++) {
-				chars[length++] = (byte) word.charAt(i);
-			}
+			word.getChars(0, word.length(), chars, length);
+			length += word.length();
 			scores[count] = (byte) Math.clamp(score, 0, 127);
 			count++;
 			offsets[count] = length;
@@ -159,7 +150,7 @@ public final class WordFrequency {
 				Arrays.copyOf(scores, count), new int[size]);
 			int mask = size - 1;
 			for (int i = 0; i < count; i++) {
-				String word = new String(f.chars, f.offsets[i], f.offsets[i + 1] - f.offsets[i], StandardCharsets.ISO_8859_1);
+				String word = new String(f.chars, f.offsets[i], f.offsets[i + 1] - f.offsets[i]);
 				int slot = hash(word) & mask;
 				while (true) {
 					int entry = f.table[slot];

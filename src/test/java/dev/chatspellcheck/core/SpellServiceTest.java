@@ -71,6 +71,27 @@ class SpellServiceTest {
 	}
 
 	@Test
+	void stretchedWordsAndLaughsAreAccepted() throws Exception {
+		assertEquals(List.of(), words(check("sooo good yesss hahaha lmaooo xddd coool pleeease noooo", Set.of())));
+		// Real typos with a doubled letter are still caught.
+		assertEquals(List.of("untill", "wrrrd"), words(check("wait untill sooon, wrrrd helllp", Set.of())));
+	}
+
+	@Test
+	void capitalisedWordsMidSentenceAreTreatedAsNames() throws Exception {
+		assertEquals(List.of("Teh"), words(check("ask Zorblax about it. Teh end", Set.of())));
+		service.settings().skipNames = false;
+		assertEquals(List.of("Zorblax", "Teh"), words(check("ask Zorblax about it. Teh end", Set.of())));
+	}
+
+	@Test
+	void namesAreStillCheckedWithGerman() throws Exception {
+		service.setLanguages(List.of(Language.DE_DE)).get(60, TimeUnit.SECONDS);
+		awaitReady(service);
+		assertEquals(List.of("Hasu"), words(check("das Hasu ist groß", Set.of())));
+	}
+
+	@Test
 	void lowerCaseProperNounsAreAccepted() throws Exception {
 		assertEquals(List.of(), words(check("i live in london and speak english", Set.of())));
 	}

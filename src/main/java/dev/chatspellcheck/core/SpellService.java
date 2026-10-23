@@ -74,10 +74,12 @@ public final class SpellService implements AutoCloseable {
 	/** Loaded dictionaries; only the active languages are kept in memory. */
 	private final Map<Language, HunspellChecker> engines = new ConcurrentHashMap<>();
 	private final Map<Language, String> loadErrors = new ConcurrentHashMap<>();
-	private volatile SuggestionRanker englishRanker;
-	private volatile WordFrequency englishFrequency;
+	/** Rankers for loaded frequency lists, keyed by {@link Language#frequencyList()}. */
+	private final Map<String, SuggestionRanker> rankers = new ConcurrentHashMap<>();
+	private final Map<String, WordFrequency> frequencies = new ConcurrentHashMap<>();
 	/** Words whose automatic correction the player undid this session; never auto-corrected again. */
 	private final Set<String> declinedAutocorrections = ConcurrentHashMap.newKeySet();
+	/** For languages without a frequency list; null until {@link #start} has read the allow-list. */
 	private volatile SuggestionRanker otherRanker;
 
 	/** Suggestion thread only. */
@@ -107,17 +109,9 @@ public final class SpellService implements AutoCloseable {
 		return userDictionary;
 	}
 
-	/** Loads frequency data, the allow-list and the configured dictionaries in the background. */
+	/** Loads the allow-list, then the configured dictionaries and their frequency lists, in the background. */
 	public void start() {
 		ioWorker.execute(() -> {
-			WordFrequency frequency = WordFrequency.empty();
-			try (InputStream in = resources.apply("frequency/en_word_frequency.txt")) {
-				if (in != null) {
-					frequency = WordFrequency.load(in);
-				}
-			} catch (IOException | RuntimeException e) {
-				LOG.warn("Could not load word frequencies; English suggestions will be unranked", e);
-			}
 			try (InputStream in = resources.apply("allowlist.txt")) {
 				if (in != null) {
 					readWordList(in, rankingTerms);
@@ -127,8 +121,6 @@ public final class SpellService implements AutoCloseable {
 				LOG.warn("Could not load allow-list", e);
 			}
 			otherRanker = new SuggestionRanker(WordFrequency.empty(), rankingTerms::contains, false);
-			englishFrequency = frequency;
-			englishRanker = new SuggestionRanker(frequency, rankingTerms::contains, true);
 			syncEngines();
 		});
 	}
@@ -192,6 +184,7 @@ public final class SpellService implements AutoCloseable {
 			if (engines.containsKey(language) || !settings.languages.contains(language)) {
 				continue;
 			}
+			loadFrequency(language);
 			try {
 				long t0 = System.nanoTime();
 				HunspellChecker checker = HunspellChecker.load(language, name -> resources.apply("dictionaries/" + name));
@@ -213,6 +206,37 @@ public final class SpellService implements AutoCloseable {
 		List<Language> wanted = settings.languages;
 		engines.keySet().retainAll(wanted);
 		loadErrors.keySet().retainAll(wanted);
+		Set<String> lists = new java.util.HashSet<>();
+		for (Language l : wanted) {
+			lists.add(l.frequencyList());
+		}
+		rankers.keySet().retainAll(lists);
+		frequencies.keySet().retainAll(lists);
+	}
+
+	/** Loads {@code language}'s frequency list if it has one that isn't loaded yet (io thread). */
+	private void loadFrequency(Language language) {
+		String list = language.frequencyList();
+		if (list == null || rankers.containsKey(list)) {
+			return;
+		}
+		WordFrequency frequency = WordFrequency.empty();
+		try (InputStream in = resources.apply("frequency/" + list + "_word_frequency.txt")) {
+			if (in != null) {
+				frequency = WordFrequency.load(in);
+			}
+		} catch (IOException | RuntimeException e) {
+			LOG.warn("Could not load {} word frequencies; its suggestions will be unranked", list, e);
+		}
+		frequencies.put(list, frequency);
+		rankers.put(list, new SuggestionRanker(frequency, rankingTerms::contains, language.isEnglish()));
+	}
+
+	/** The ranker for {@code language}: its frequency list's, or the plain one while that loads. */
+	private SuggestionRanker rankerFor(Language language) {
+		String list = language.frequencyList();
+		SuggestionRanker ranker = list == null ? null : rankers.get(list);
+		return ranker != null ? ranker : otherRanker;
 	}
 
 	public void addDomainTerms(Collection<String> terms) {
@@ -257,13 +281,33 @@ public final class SpellService implements AutoCloseable {
 		for (HunspellChecker c : active) {
 			scripts.add(c.language().script());
 		}
+		// German capitalises every noun, so a capital letter says nothing about names there.
+		boolean skipNames = settings.skipNames && active.stream().noneMatch(c -> c.language().code().startsWith("de_"));
 		List<Misspelling> found = new ArrayList<>();
 		for (TextScanner.Word w : TextScanner.scan(text, settings.checkMessageCommands, scripts)) {
+			if (skipNames && looksLikeName(text, w)) {
+				continue;
+			}
 			if (!isAccepted(enginesFor(active, w.text()), w.text(), names)) {
 				found.add(new Misspelling(w.start(), w.end(), w.text()));
 			}
 		}
 		return new CheckResult(text, generation, found);
+	}
+
+	/**
+	 * A capitalised word in the middle of a sentence ("ask Zorblax"), which is probably a name.
+	 * The first word of a sentence is still checked, so "Teh" after a full stop is caught.
+	 */
+	static boolean looksLikeName(String text, TextScanner.Word w) {
+		if (SuggestionRanker.Casing.of(w.text()) != SuggestionRanker.Casing.CAPITALIZED) {
+			return false;
+		}
+		int i = w.start() - 1;
+		while (i >= 0 && !Character.isLetterOrDigit(text.charAt(i)) && ".!?".indexOf(text.charAt(i)) < 0) {
+			i--; // spaces, quotes, brackets
+		}
+		return i >= 0 && ".!?".indexOf(text.charAt(i)) < 0;
 	}
 
 	/** Loaded engines for {@code languages}, in priority order. */
@@ -319,6 +363,20 @@ public final class SpellService implements AutoCloseable {
 		for (HunspellChecker checker : checkers) {
 			if (checker.isAccepted(lookup, SpellService::isCorrect)) {
 				return true;
+			}
+		}
+		if (ChatSpeak.isLaugh(plain)) {
+			return true;
+		}
+		// Stretched on purpose: "sooo", "yesss", "lmaooo".
+		for (String shorter : ChatSpeak.unstretched(plain)) {
+			if (isAllowListed(shorter, names)) {
+				return true;
+			}
+			for (HunspellChecker checker : checkers) {
+				if (checker.isAccepted(shorter, SpellService::isCorrect)) {
+					return true;
+				}
 			}
 		}
 		return false;
@@ -383,7 +441,7 @@ public final class SpellService implements AutoCloseable {
 	 * exceptionally.
 	 */
 	public CompletableFuture<List<String>> suggestions(String word) {
-		if (englishRanker == null) {
+		if (otherRanker == null) {
 			return CompletableFuture.completedFuture(List.of()); // still starting; not cached
 		}
 		List<Language> languages = settings.languages;
@@ -414,7 +472,7 @@ public final class SpellService implements AutoCloseable {
 
 	List<String> computeSuggestions(List<Language> languages, String word) {
 		List<HunspellChecker> checkers = enginesFor(activeEngines(languages), word);
-		if (checkers.isEmpty() || englishRanker == null) {
+		if (checkers.isEmpty() || otherRanker == null) {
 			return List.of();
 		}
 		// Hunspell orders suggestions for "Teh" oddly; ask about "teh" and restore case later.
@@ -424,7 +482,7 @@ public final class SpellService implements AutoCloseable {
 		}
 		List<List<String>> perLanguage = new ArrayList<>();
 		for (HunspellChecker checker : checkers) {
-			SuggestionRanker ranker = checker.language().isEnglish() ? englishRanker : otherRanker;
+			SuggestionRanker ranker = rankerFor(checker.language());
 			List<String> raw = new ArrayList<>();
 			for (String form : apostropheForms(query)) {
 				for (String s : checker.suggest(form)) {
@@ -478,7 +536,7 @@ public final class SpellService implements AutoCloseable {
 		return suggestions(word).thenApply(list -> {
 			// A fix must be a word in a language whose rule allows it: any near-certain fix for
 			// English, only an accent fix for the others.
-			java.util.Optional<String> fix = Autocorrect.choose(word, list, englishFrequency).filter(f -> accepts(general, f));
+			java.util.Optional<String> fix = Autocorrect.choose(word, list, frequencies.getOrDefault("en", WordFrequency.empty())).filter(f -> accepts(general, f));
 			if (fix.isEmpty()) {
 				fix = Autocorrect.equivalentSpelling(word, list).filter(f -> accepts(accents, f));
 			}
