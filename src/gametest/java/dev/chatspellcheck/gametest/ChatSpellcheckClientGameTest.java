@@ -41,12 +41,6 @@ public class ChatSpellcheckClientGameTest implements FabricClientGameTest {
 	public void runTest(ClientGameTestContext ctx) {
 		try (TestSingleplayerContext ignored = ctx.worldBuilder().create()) {
 			ctx.waitTicks(20);
-			String demo = System.getenv("CHATSPELLCHECK_DEMO");
-			if (demo != null) {
-				demoVideo(ctx, new DemoRecorder(Path.of(demo)));
-				ctx.setScreen(() -> null);
-				return;
-			}
 			ctx.runOnClient(mc -> ChatSpellcheckClient.service().settings().welcomeTips = 0); // timings without the tip
 			ChatSpellcheckClient.service().setLanguages(List.of(Language.EN_US)).join();
 			ctx.waitFor(mc -> ChatSpellcheckClient.service().isReady(), TIMEOUT);
@@ -77,108 +71,6 @@ public class ChatSpellcheckClientGameTest implements FabricClientGameTest {
 			autocorrectAsYouType(ctx);
 			rightToLeftDisplay(ctx);
 			ctx.setScreen(() -> null);
-		}
-	}
-
-	/** Scripted scene for the listing video (CHATSPELLCHECK_DEMO=path/to/manifest.tsv). */
-	private void demoVideo(ClientGameTestContext ctx, DemoRecorder rec) {
-		ctx.getInput().resizeWindow(1920, 1080);
-		ctx.waitTicks(2);
-		ctx.runOnClient(mc -> {
-			ChatSpellcheckClient.service().settings().autocorrect = false;
-			mc.options.guiScale().set(3);
-			mc.resizeGui();
-		});
-		openChat(ctx, "");
-		rec.cursor(-1, -1);
-		rec.caption("Typos get a red squiggle as you type");
-		rec.frame(ctx, 700);
-
-		String message = "omg i finaly found teh diamonds";
-		for (char c : message.toCharArray()) {
-			ctx.getInput().typeChars(String.valueOf(c));
-			ctx.waitTick();
-			rec.frame(ctx, 70);
-		}
-		waitForWords(ctx, List.of("finaly", "teh"));
-		rec.frame(ctx, 1300);
-
-		// Hover the first typo, then click the top suggestion.
-		rec.caption("Hover a word, click the fix");
-		Rect word = rectOf(ctx, "finaly");
-		double[] start = {1100, 600};
-		double[] onWord = toWindow(ctx, word.x() + word.width() / 2.0, word.y() + word.height() / 2.0);
-		glide(ctx, rec, start, onWord, 10);
-		waitMillis(ctx, 250);
-		ctx.waitFor(mc -> loadedRows(mc) != null, TIMEOUT);
-		rec.frame(ctx, 1500);
-		int[] row0 = ctx.computeOnClient(mc -> overlay(mc).popoverRowCenter(0));
-		double[] onRow = toWindow(ctx, row0[0], row0[1]);
-		glide(ctx, rec, onWord, onRow, 6);
-		rec.frame(ctx, 450);
-		ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
-		ctx.waitTick();
-		check(value(ctx).equals("omg i finally found teh diamonds"), "demo click fix: " + value(ctx));
-		waitForWords(ctx, List.of("teh"));
-		rec.frame(ctx, 1000);
-
-		// Fix the second typo from the keyboard.
-		rec.caption("Or press Ctrl+. and Enter");
-		glide(ctx, rec, onRow, new double[] {1500, 300}, 5);
-		ctx.getInput().setCursorPos(1500, 300);
-		rec.cursor(-1, -1);
-		ctx.runOnClient(mc -> input(mc).moveCursorTo("omg i finally found te".length(), false));
-		ctx.waitTick();
-		rec.frame(ctx, 500);
-		pressShortcut(ctx);
-		ctx.waitFor(mc -> loadedRows(mc) != null, TIMEOUT);
-		rec.frame(ctx, 1500);
-		ctx.getInput().pressKey(InputConstants.KEY_RETURN);
-		ctx.waitTick();
-		check(value(ctx).equals("omg i finally found the diamonds"), "demo keyboard fix: " + value(ctx));
-		ctx.runOnClient(mc -> input(mc).moveCursorToEnd(false));
-		ctx.waitTick();
-		rec.frame(ctx, 1600);
-
-		// Autocorrect, typed live.
-		rec.caption("Optional autocorrect, Backspace undoes it");
-		ctx.runOnClient(mc -> {
-			ChatSpellcheckClient.service().settings().autocorrect = true;
-			input(mc).setValue("");
-		});
-		ctx.waitTick();
-		rec.frame(ctx, 400);
-		for (char c : "brb grabbing teh pickaxe ".toCharArray()) {
-			ctx.getInput().typeChars(String.valueOf(c));
-			ctx.waitTick();
-			rec.frame(ctx, 70);
-		}
-		waitForValue(ctx, "brb grabbing the pickaxe ");
-		rec.frame(ctx, 2600);
-
-		ctx.runOnClient(mc -> {
-			ChatSpellcheckClient.service().settings().autocorrect = false;
-			input(mc).setValue("");
-		});
-	}
-
-	private static double[] toWindow(ClientGameTestContext ctx, double guiX, double guiY) {
-		return ctx.computeOnClient(mc -> new double[] {
-			guiX * mc.getWindow().getScreenWidth() / mc.getWindow().getGuiScaledWidth(),
-			guiY * mc.getWindow().getScreenHeight() / mc.getWindow().getGuiScaledHeight()});
-	}
-
-	/** Moves the mouse in steps, one video frame per step, so the cursor visibly travels. */
-	private static void glide(ClientGameTestContext ctx, DemoRecorder rec, double[] from, double[] to, int steps) {
-		for (int i = 1; i <= steps; i++) {
-			double t = i / (double) steps;
-			double e = t * t * (3 - 2 * t);
-			double x = from[0] + (to[0] - from[0]) * e;
-			double y = from[1] + (to[1] - from[1]) * e;
-			ctx.getInput().setCursorPos(x, y);
-			ctx.waitTick();
-			rec.cursor(x, y);
-			rec.frame(ctx, 33);
 		}
 	}
 
