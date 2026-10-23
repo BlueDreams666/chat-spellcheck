@@ -521,9 +521,37 @@ public final class SpellService implements AutoCloseable {
 					}
 				}
 			}
+			if (checker.language().script() == Character.UnicodeScript.LATIN) {
+				for (String term : nearbyDomainTerms(query)) {
+					if (!raw.contains(term)) {
+						raw.add(term);
+					}
+				}
+			}
 			perLanguage.add(ranker.rank(word, raw));
 		}
 		return mergeSuggestions(word, perLanguage);
+	}
+
+	/**
+	 * Minecraft words (the allow-list and registry ids) one small typo away from {@code word}.
+	 * Hunspell only suggests dictionary words, so without these "minectaft" would never be
+	 * offered "minecraft".
+	 */
+	List<String> nearbyDomainTerms(String word) {
+		String lower = word.toLowerCase(Locale.ROOT);
+		int length = lower.length();
+		if (length < 4) {
+			return List.of();
+		}
+		double max = length >= Autocorrect.LONG_WORD ? Autocorrect.MAX_DISTANCE : Autocorrect.MAX_DISTANCE_SHORT;
+		List<String> out = new ArrayList<>();
+		for (String term : domainTerms) {
+			if (Math.abs(term.length() - length) <= 1 && !term.equals(lower) && TypoDistance.between(lower, term) <= max) {
+				out.add(term);
+			}
+		}
+		return out;
 	}
 
 	/**
@@ -566,7 +594,10 @@ public final class SpellService implements AutoCloseable {
 		return suggestions(word).thenApply(list -> {
 			// A fix must be a word in a language whose rule allows it: any near-certain fix for
 			// English, only an accent fix for the others.
-			java.util.Optional<String> fix = Autocorrect.choose(word, list, frequencies.getOrDefault("en", WordFrequency.empty())).filter(f -> accepts(general, f));
+			// Minecraft words from the curated allow-list ("minecraft", "netherite") count too, but
+			// not every registry id: mods add odd names that would make poor automatic fixes.
+			java.util.Optional<String> fix = Autocorrect.choose(word, list, frequencies.getOrDefault("en", WordFrequency.empty()))
+				.filter(f -> accepts(general, f) || !general.isEmpty() && rankingTerms.contains(f.toLowerCase(Locale.ROOT)));
 			if (fix.isEmpty()) {
 				fix = Autocorrect.equivalentSpelling(word, list).filter(f -> accepts(accents, f));
 			}

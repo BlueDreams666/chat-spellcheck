@@ -290,6 +290,17 @@ class SpellServiceTest {
 	}
 
 	@Test
+	void minecraftWordsAreSuggestedAndAutocorrected() throws Exception {
+		assertEquals("minecraft", service.suggestions("minectaft").get(5, TimeUnit.SECONDS).getFirst());
+		assertEquals("netherite", service.suggestions("netherrite").get(5, TimeUnit.SECONDS).getFirst());
+		assertEquals(java.util.Optional.of("minecraft"), service.autocorrection("minectaft").get(5, TimeUnit.SECONDS));
+		assertEquals(java.util.Optional.of("Minecraft"), service.autocorrection("Minectaft").get(5, TimeUnit.SECONDS));
+		assertEquals(java.util.Optional.of("netherite"), service.autocorrection("netherrite").get(5, TimeUnit.SECONDS));
+		// Ordinary typos still go to the dictionary word.
+		assertEquals(java.util.Optional.of("the"), service.autocorrection("teh").get(5, TimeUnit.SECONDS));
+	}
+
+	@Test
 	void autocorrectRespectsEachLanguagesPolicy() throws Exception {
 		assertEquals(java.util.Optional.of("the"), service.autocorrection("teh").get(5, TimeUnit.SECONDS));
 		// Spanish general typos are suggested; only accent fixes are applied automatically.
