@@ -2,40 +2,40 @@
 
 <img src="docs/icon.png" alt="Spell Check & Auto Correct icon" width="128">
 
-# 💖 Spell Check & Auto Correct 💖
+# Spell Check & Auto Correct
 
 **A little spellchecker for Minecraft's chat box ♡**
 
-Typos get a red squiggle as you type. Hover one and click to fix it!
+Typos get a red squiggle while you type. Hover one and click the fix.
 
 <img src="docs/demo.gif" alt="Typing in chat, typos get underlined, then hovering one shows suggestions" width="640">
 
 Client-side Fabric mod · works on any server · fully offline
 
-[▶️ Watch the 18-second demo on YouTube](https://youtu.be/L_5H6EEQymU)
+[18-second demo on YouTube](https://youtu.be/L_5H6EEQymU)
 
-[Download](https://github.com/BlueDreams666/chat-spellcheck/releases/latest) · [Report a bug](https://github.com/BlueDreams666/chat-spellcheck/issues) · [☕ Buy me a coffee](https://buymeacoffee.com/bluedreams)
+[Download](https://github.com/BlueDreams666/chat-spellcheck/releases/latest) · [Report a bug](https://github.com/BlueDreams666/chat-spellcheck/issues) · [Buy me a coffee](https://buymeacoffee.com/bluedreams)
 
 </div>
 
-## 💕 Features
+## Features
 
-- **Underlines as you type.** Misspelled words get a red squiggle. Nothing else about the chat box changes.
-- **Click to fix.** Hover a word to see suggestions, then click one. Only that word changes, and your cursor stays where it was.
-- **Keyboard shortcut.** Press **Ctrl+.** (**Cmd+.** on Mac) to open suggestions for the word at your cursor. Use **↑/↓** to pick one, **Enter** to apply it, **Esc** to close.
-- **Ignore or add words.** **Ignore** hides a word until you close the game. **Add to dictionary** saves it for good.
-- **14 dictionaries.** You can turn on as many as you like, and a word counts as correct if any of them knows it:
+- Misspelled words get a red squiggle as you type. Nothing else about the chat box changes.
+- Hover a word to see suggestions and click one. Only that word changes, and your cursor stays put.
+- **Ctrl+.** (**Cmd+.** on Mac) opens suggestions for the word at your cursor from the keyboard: **↑/↓** to pick, **Enter** to apply, **Esc** to close.
+- **Ignore** hides a word until you quit the game. **Add to dictionary** keeps it for good.
+- 14 dictionaries. Turn on as many as you want; a word counts as correct if any of them knows it.
   - English (US, UK, Canada, Australia)
   - Danish, Dutch, French, German, Swiss German, Italian, Norwegian (Bokmål), Spanish
   - Hebrew and Arabic
-- **Knows Minecraft.** Item, block and mob names (modded ones too), online players' names, and common chat slang like `gg`, `afk` and `brb` are never flagged.
-- **Knows chat.** Stretched words like `sooo` and `yesss`, and laughs like `hahaha`, `xddd` and `חחח`, are left alone. So are capitalised names in the middle of a sentence ("ask Zorblax").
-- **Smart suggestions.** The most likely word comes first, using word frequencies for English, German, Spanish, French, Italian and Hebrew.
-- **Ready on first launch.** The mod turns on the dictionary for your game's language, and a little tip shows you how it works the first few times you open chat.
-- **A cosy settings screen.** It has a live preview, your choice of underline style and colour (including blue for colour-blind players), and stats for your typing.
-- **Optional autocorrect.** Off by default. When it's on, only typos it's very sure about are fixed (see [Autocorrect](#-autocorrect)).
+- It knows Minecraft: item, block and mob names (modded ones too), the names of online players, and chat slang like `gg`, `afk` and `brb` are never flagged.
+- It knows how people type in chat. Stretched words like `sooo` and `yesss` and laughs like `hahaha`, `xddd` and `חחח` are left alone, and so are capitalised names mid-sentence ("ask Zorblax").
+- The most likely word is suggested first, using word frequencies for English, German, Spanish, French, Italian and Hebrew.
+- On first launch it turns on the dictionary for your game's language, and a small tip explains how it works the first few times you open chat.
+- The settings screen has a live preview, a choice of underline style and colour (blue too, for colour-blind players) and stats on your typing.
+- Autocorrect, if you want it. It's off by default, and when it's on it only fixes typos it's very sure about (see [Autocorrect](#autocorrect)).
 
-## 📸 Screenshots
+## Screenshots
 
 | | |
 |---|---|
@@ -48,7 +48,7 @@ Client-side Fabric mod · works on any server · fully offline
 | <img src="docs/settings-stats.png" alt="Stats card with words checked, typos fixed, a clean-message streak and a weekly bar chart" width="400"> | <img src="docs/settings-preview.png" alt="The preview line with dotted blue underlines" width="400"> |
 | Your stats, kept on your computer | The preview updates as you choose |
 
-## 🌸 Install
+## Install
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) 0.19.5 or newer.
 2. Download the JAR that matches your Minecraft version, then put it and [Fabric API](https://modrinth.com/mod/fabric-api) in your `.minecraft/mods` folder.
@@ -61,7 +61,7 @@ Client-side Fabric mod · works on any server · fully offline
 
 The JAR is about 19 MB because it includes every dictionary, but only the languages you turn on are loaded into memory.
 
-## ⚙️ Settings
+## Settings
 
 Type `/spellcheck` in chat to open the settings screen. If you have [Mod Menu](https://modrinth.com/mod/modmenu), you can also open it from the mod list. The screen has these sections:
 
@@ -92,7 +92,7 @@ Your settings, saved words and stats are in `.minecraft/config/chatspellcheck/`.
 
 <p align="center"><img src="docs/underlines.png" alt="Misspelled words underlined in the chat box while the link is left alone" width="640"></p>
 
-## 🙈 What doesn't get checked
+## What doesn't get checked
 
 To avoid nagging you about things that aren't typos, the mod skips:
 
@@ -108,7 +108,7 @@ To avoid nagging you about things that aren't typos, the mod skips:
 
 Lowercase names like "london" are accepted too.
 
-## ✨ Autocorrect
+## Autocorrect
 
 Autocorrect is off until you turn it on. When it's on, it only fixes a word after you finish it, and only when the right fix is clear. If it gets one wrong, press **Backspace** straight away to undo it, and it won't change that word again until you restart the game. Capitalised words are only fixed at the start of a sentence, so names are left alone.
 
@@ -121,13 +121,13 @@ How much it fixes depends on the language:
 | Hebrew | Final letter forms ("שלומ" → "שלום") and clear one-letter typos in longer words |
 | Swiss German, Danish, Arabic | Nothing. Typos are still underlined with suggestions. |
 
-## 💭 Good to know
+## Good to know
 
 - It checks spelling one word at a time. It can't catch real words used in the wrong place ("their" vs "there"), and it doesn't check grammar.
 - Hebrew and Arabic show in the right reading order while you type, with Arabic letters joined. Only the display changes; your message is sent exactly as you typed it.
 - It only works in the chat box, not on signs, books or anvils.
 
-## 🛠️ For developers
+## For developers
 
 You'll need JDK 25.
 
@@ -166,7 +166,7 @@ The code is organised like this:
 | `client` | The chat overlay, welcome tip, settings screen and `/spellcheck` command |
 | `mixin` | Hooks into Minecraft's chat screen and text box |
 
-## 📜 License
+## License
 
 The mod's code is [MIT](LICENSE). The bundled dictionaries and libraries have their own licences:
 
@@ -181,9 +181,3 @@ The mod's code is [MIT](LICENSE). The bundled dictionaries and libraries have th
 - Norwegian: CC BY 4.0
 
 If you redistribute the JAR, follow those licences. You can find the full details in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-<div align="center">
-
-Made with 💗 for everyone who types too fast in chat
-
-</div>
